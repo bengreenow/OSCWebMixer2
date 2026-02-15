@@ -139,13 +139,19 @@ function buildConfig()
 		{
 			if(cache.has(`/Input_Channels/${i+1}/Channel_Input/name`))
 			{
+				let groupLabel = "";
+				if (config.groups && config.channels[i] && config.channels[i].group !== undefined) {
+					const g = config.groups[config.channels[i].group];
+					if (g && g.label) groupLabel = g.label;
+				}
 				channels.push({
 					enabled: config.channels[i] ? config.channels[i].enabled : true,
 					label: cache.get(`/Input_Channels/${i+1}/Channel_Input/name`).args[0],
 					channel: i + 1,
 					order: config.channels[i]?.order ?? i,
 					title: config.channels[i] ? config.channels[i].title : "",
-					icon: config.channels[i] ? config.channels[i].icon : ""
+					icon: config.channels[i] ? config.channels[i].icon : "",
+					groupLabel: groupLabel
 				});
 			}
 		}
@@ -235,6 +241,14 @@ function startServer()
 			config.auxilaries = auxConfig;
 		}
 
+		if(req.body.channelEnabled !== undefined)
+		{
+			const groupLabels = req.body["groupLabel[]"] || req.body.groupLabel || req.body.groupLabels;
+			config.groups = groupLabels
+				? (Array.isArray(groupLabels) ? groupLabels : [groupLabels]).map(l => ({ label: (l || "").trim() }))
+				: [];
+		}
+
 		if(req.body.channelEnabled && req.body.channelOrder && req.body.channelIcon)
 		{
 			let channelConfig = [];
@@ -253,6 +267,19 @@ function startServer()
 			for(const [index, value] of req.body.channelIcon.entries())
 			{
 				addToObject(channelConfig, index, "icon", value);
+			}
+			const channelGroupRaw = req.body["channelGroup[]"] || req.body.channelGroup;
+			if(channelGroupRaw)
+			{
+				const arr = Array.isArray(channelGroupRaw) ? channelGroupRaw : [channelGroupRaw];
+				for(const [index, value] of arr.entries())
+				{
+					if(value !== "" && value !== undefined)
+					{
+						const g = parseInt(value, 10);
+						if(!Number.isNaN(g)) addToObject(channelConfig, index, "group", g);
+					}
+				}
 			}
 			config.channels = channelConfig;
 		}
@@ -413,6 +440,8 @@ function startServer()
 				let order = i + 1;
 				let title = "";
 				let icon = "";
+				let group = undefined;
+				let groupLabel = "";
 				if(config.channels && config.channels[i])
 				{
 					if(config.channels[i].enabled != undefined)
@@ -431,17 +460,30 @@ function startServer()
 					{
 						icon = config.channels[i].icon;
 					}
+					if(config.channels[i].group !== undefined)
+					{
+						group = config.channels[i].group;
+						if(config.groups && config.groups[group] && config.groups[group].label)
+						{
+							groupLabel = config.groups[group].label;
+						}
+					}
 				}
 				channelDetails.push({
 					"enabled": enabled,
 					"name": cache.get(`/Input_Channels/${i+1}/Channel_Input/name`).args[0],
 					"order": order,
 					"title": title,
-					"icon": icon
+					"icon": icon,
+					"group": group,
+					"groupLabel": groupLabel
 				});
 			}
 		}
-		res.json(channelDetails);
+		res.json({
+			channels: channelDetails,
+			groups: config.groups || []
+		});
 	});
 
 	//if this is the first time webmixer has been run
@@ -567,7 +609,8 @@ function loadConfig()
 			ip: "",
 			port: 9000
 		},
-		external: []
+		external: [],
+		groups: []
 	};
 }
 

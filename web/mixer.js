@@ -319,35 +319,99 @@ function resetSlider(e)
 }
 
 /**
- * Build channels html and add to the page
+ * Build channels html and add to the page. Channels are sorted by group and wrapped in collapsible fieldsets.
  * @param {!Array<Object>} channels - the channels to build
  */
 function buildChannels(channels)
 {
-	let html = "";
-	for(let channel of channels)
+	const groupOrder = [];
+	const groupChannels = new Map();
+	for(const ch of channels)
 	{
-		if(channel.title != "")
+		const key = (ch.groupLabel && ch.groupLabel !== "") ? ch.groupLabel : "";
+		if(!groupChannels.has(key))
 		{
-			html += '<h2 style="order:' + channel.order + '">' + channel.title + '</h2>';
+			groupOrder.push(key);
+			groupChannels.set(key, []);
 		}
-		html += '<div' + (channel.enabled ? '' : ' class="disabled"') + ' style="order:' + channel.order + '">';
-		html += '<label class="volume">';
-		if(channel.icon != "")
+		groupChannels.get(key).push(ch);
+	}
+	for(const key of groupOrder)
+	{
+		groupChannels.get(key).sort((a, b) => a.order - b.order);
+	}
+
+	let html = "";
+	for(const groupKey of groupOrder)
+	{
+		const groupList = groupChannels.get(groupKey);
+		const legendLabel = groupKey !== "" ? groupKey : "Channels";
+		html += '<fieldset class="channel-group">';
+		html += '<legend class="channel-group-legend"><span class="channel-group-label">' + legendLabel + '</span><button type="button" class="channel-group-toggle" aria-label="Collapse" title="Collapse">▼</button></legend>';
+		html += '<div class="channel-group-content">';
+		for(const channel of groupList)
 		{
-			html += '<img src="' + channel.icon + '" width="22" height="22" class="icon" />';
+			if(channel.title != "")
+			{
+				html += '<h2 style="order:' + channel.order + '">' + channel.title + '</h2>';
+			}
+			html += '<div' + (channel.enabled ? '' : ' class="disabled"') + ' style="order:' + channel.order + '">';
+			html += '<label class="volume">';
+			if(channel.icon != "")
+			{
+				html += '<img src="' + channel.icon + '" width="22" height="22" class="icon" />';
+			}
+			html += '<span>' + channel.label + '</span>';
+			html += '<span class="volume-track"><input type="range" data-channel="' + channel.channel + '" class="volumeInput" step="0.001" min="0" max="1" value="0" /></span>';
+			html += '</label>';
+			html += '<label class="pan">';
+			if(channel.icon != "")
+			{
+				html += '<img src="' + channel.icon + '" width="22" height="22" class="icon" />';
+			}
+			html += '<span>' + channel.label + '</span>';
+			html += '<span class="pan-track"><input type="range" data-channel="' + channel.channel + '" class="panInput" step="0.001" min="0" max="1" value="0.5" /></span>';
+			html += '</label>';
+			html += '</div>';
 		}
-		html += '<span>' + channel.label + '</span><input type="range" data-channel="' + channel.channel + '" class="volumeInput" step="0.001" min="0" max="1" value="0" /></label>';
-		html += '<label class="pan">';
-		if(channel.icon != "")
-		{
-			html += '<img src="' + channel.icon + '" width="22" height="22" class="icon" />';
-		}
-		html += '<span>' + channel.label + '</span><input type="range" data-channel="' + channel.channel + '" class="panInput" step="0.001" min="0" max="1" value="0.5" /></label>';
-		html += '</div>';
+		html += '</div></fieldset>';
 	}
 
 	channelsDiv.innerHTML = html;
+
+	const collapsedKey = "mixer-group-collapsed";
+	let collapsedLabels = [];
+	try {
+		const stored = localStorage.getItem(collapsedKey);
+		if(stored) collapsedLabels = JSON.parse(stored);
+	} catch (_) {}
+
+	for(const legend of channelsDiv.querySelectorAll(".channel-group-legend"))
+	{
+		const fs = legend.closest("fieldset.channel-group");
+		const labelEl = legend.querySelector(".channel-group-label");
+		const label = labelEl ? labelEl.textContent : legend.textContent.trim();
+		const btn = legend.querySelector(".channel-group-toggle");
+		if(fs && collapsedLabels.includes(label))
+		{
+			fs.classList.add("collapsed");
+			if(btn) btn.textContent = "▶";
+		}
+		if(btn) btn.setAttribute("aria-label", fs && fs.classList.contains("collapsed") ? "Expand" : "Collapse");
+		function toggle() {
+			if(!fs) return;
+			fs.classList.toggle("collapsed");
+			if(btn) { btn.textContent = fs.classList.contains("collapsed") ? "▶" : "▼"; btn.setAttribute("aria-label", fs.classList.contains("collapsed") ? "Expand" : "Collapse"); }
+			const name = labelEl ? labelEl.textContent : legend.textContent.trim();
+			if(fs.classList.contains("collapsed"))
+				collapsedLabels = [...new Set([...collapsedLabels, name])];
+			else
+				collapsedLabels = collapsedLabels.filter(l => l !== name);
+			try { localStorage.setItem(collapsedKey, JSON.stringify(collapsedLabels)); } catch (_) {}
+		}
+		legend.addEventListener("click", (e) => { if(e.target !== btn) toggle(); });
+		if(btn) btn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); toggle(); });
+	}
 
 	for(let slider of document.querySelectorAll(".volumeInput, .panInput"))
 	{

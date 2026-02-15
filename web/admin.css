@@ -224,6 +224,174 @@ button
 	margin: 0;
 }
 
+.channels-section
+{
+	display: grid;
+	grid-template-columns: 1fr minmax(180px, 280px);
+	gap: 24px;
+	align-items: start;
+}
+
+#channels
+{
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+#channels > fieldset.channel-group
+{
+	display: flex;
+	flex-direction: column;
+	border: 1px solid rgba(0,0,0,0.15);
+	border-radius: 6px;
+	padding: 0 12px 12px 12px;
+	margin: 0;
+	min-width: 0;
+}
+
+#channels > fieldset.channel-group.collapsed
+{
+	padding-bottom: 0;
+}
+
+#channels .channel-group-legend
+{
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+	padding: 8px 12px 8px 12px;
+	margin: 0 -12px 12px -12px;
+	font-size: 1rem;
+	font-weight: 700;
+	background: rgba(0,0,0,0.06);
+	border-radius: 6px 6px 0 0;
+	user-select: none;
+}
+
+#channels .channel-group-label
+{
+	margin-right: 8px;
+}
+
+#channels .channel-group-toggle
+{
+	margin-left: auto;
+	padding: 2px 8px;
+	font-size: 0.85em;
+	background: rgba(0,0,0,0.08);
+	border: 1px solid rgba(0,0,0,0.2);
+	border-radius: 4px;
+	cursor: pointer;
+	color: inherit;
+}
+
+#channels .channel-group-toggle:hover
+{
+	background: rgba(0,0,0,0.12);
+}
+
+#channels .channel-group-content
+{
+	display:flex;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
+}
+
+
+#channels .channel-group-content
+{
+
+}
+
+#channels > fieldset.channel-group.collapsed .channel-group-content
+{
+	display: none;
+}
+
+#channels .channel-row
+{
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.groups-panel
+{
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.groups-panel h2
+{
+	margin: 0 0 8px 0;
+}
+
+.groups-panel-actions
+{
+	display: flex;
+	gap: 8px;
+}
+
+.group-item
+{
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.group-item input[name="groupLabel[]"]
+{
+	flex: 1;
+	min-width: 100px;
+}
+
+.group-drop-zone
+{
+	min-height: 44px;
+	border: 2px dashed #ccc;
+	border-radius: 4px;
+	padding: 8px;
+	font-size: 13px;
+	color: #666;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.group-drop-zone.drag-over
+{
+	border-color: #333;
+	background: #f5f5f5;
+	color: #333;
+}
+
+.ungroup-zone
+{
+	margin-top: 8px;
+}
+
+.group-badge
+{
+	font-size: 12px;
+	color: #666;
+	background: #eee;
+	padding: 2px 8px;
+	border-radius: 4px;
+	max-width: 120px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.channel-row.dragging
+{
+	opacity: 0.6;
+}
+
 /*
 .dragTarget
 {

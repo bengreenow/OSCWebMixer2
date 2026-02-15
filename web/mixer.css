@@ -192,7 +192,83 @@ body
 {
 	display: flex;
 	flex-direction: column;
+	gap: 0;
 }
+
+#channels > fieldset.channel-group
+{
+	display: flex;
+	flex-direction: column;
+	border: 1px solid rgba(255,255,255,0.2);
+	border-radius: 4px;
+	margin: 0 0 16px 0;
+	padding: 0 10px 10px 10px;
+	min-width: 0;
+	box-sizing: border-box;
+}
+
+#channels > fieldset.channel-group.collapsed
+{
+	padding-bottom: 0;
+}
+
+#channels .channel-group-legend
+{
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+	padding: 8px 10px 8px 10px;
+	margin: 0 -10px 8px -10px;
+	font-size: 1rem;
+	font-weight: 700;
+	background: rgba(255,255,255,0.08);
+	border-radius: 4px 4px 0 0;
+	user-select: none;
+	list-style: none;
+}
+
+#channels .channel-group-label
+{
+	margin-right: 8px;
+}
+
+#channels .channel-group-toggle
+{
+	margin-left: auto;
+	padding: 2px 8px;
+	font-size: 0.85em;
+	background: rgba(255,255,255,0.15);
+	border: 1px solid rgba(255,255,255,0.3);
+	border-radius: 4px;
+	cursor: pointer;
+	color: inherit;
+}
+
+#channels .channel-group-toggle:hover
+{
+	background: rgba(255,255,255,0.25);
+}
+
+#channels .channel-group-content
+{
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+#channels > fieldset.channel-group.collapsed .channel-group-content
+{
+	display: none;
+}
+/* 
+#channels .channel-group-content > div
+{
+	display: grid;
+	align-items: end;
+	min-height: 70px;
+	grid-template-columns: 1fr 1fr;
+	grid-auto-rows: minmax(70px, auto);
+} */
 
 #channels > div
 {
@@ -200,7 +276,8 @@ body
 	align-items: end;
 }
 
-#channels > div.disabled
+#channels > div.disabled,
+#channels .channel-group-content > div.disabled
 {
 	display: none;
 }
@@ -243,6 +320,8 @@ input[type='range']
 	height: 44px;
 	background: rgba(var(--tint, "6, 106, 166"), 0.4);
 	min-height: 44px;
+	max-height: 44px;
+	flex-shrink: 0;
 	border-radius: 0;
 	margin: 2px -5px 0;
 	border: 0;
@@ -254,6 +333,13 @@ input[type='range']
 
 	/*disable tap on range bar*/
 	pointer-events: none;
+}
+
+#channels .channel-group-content input[type='range']
+{
+	height: 44px;
+	min-height: 44px;
+	max-height: 44px;
 }
 
 input[type=range]::-moz-range-thumb
@@ -297,10 +383,12 @@ label.pan
 {
 	padding: 0 5px;
 	width: 100%;
+	min-height: 54px;
 	position: relative;
 	margin-bottom: 10px;
 	user-select: none;
-
+	display: block;
+	box-sizing: border-box;
 	/*
 	This prevents a draw issue on the range sliders.
 	This seems to have fixed it for iOS15
@@ -308,41 +396,86 @@ label.pan
 	-webkit-transform: translate3d(0, 0, 0);
 }
 
-label.volume:after
+.channel-group-label
+{
+	display: block;
+	font-size: 0.75em;
+	opacity: 0.85;
+	margin-top: 2px;
+}
+
+/* Fixed-height track wrappers so absolute fill is always in a 44px box */
+.volume-track,
+.pan-track
+{
+	display: block;
+	position: relative;
+	height: 44px;
+	min-height: 44px;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.pan-track
+{
+	background: rgba(var(--tint, "6, 106, 166"), 0.4);
+}
+
+.volume-track::after
 {
 	content: "";
-	height: 44px;
-	background: #FFF;
 	position: absolute;
 	left: 0;
 	bottom: 0;
-	width: calc(var(--value));
-	z-index: -1;
-}
-
-label.pan:after
-{
-	content: "";
+	top: 0;
 	height: 44px;
-	width: 44px;
+	width: calc(var(--value, 0%));
 	background: #FFF;
-	position: absolute;
-	right: 50%;
-	bottom: 0;
-	width: calc((var(--value) - 50%) * -1);
 	z-index: -1;
+	pointer-events: none;	
 }
 
-label.pan:before
+.volume-track input[type="range"]
+{
+	position: relative;
+	z-index: 0;
+}
+
+/* Right-of-center fill: width from center to value when value > 50% */
+.pan-track::before
 {
 	content: "";
-	height: 44px;
-	background: rgba(255,255,255,1);
 	position: absolute;
 	left: 50%;
 	bottom: 0;
-	width: calc(var(--value) - 50%);
-	z-index: -1;
+	top: 0;
+	height: 44px;
+	width: max(0%, min(50%, calc(var(--value, 50%) - 50%)));
+	background: rgba(255,255,255,1);
+	z-index: 0;
+	pointer-events: none;
+}
+
+/* Left-of-center fill: width from value to center when value < 50% */
+.pan-track::after
+{
+	content: "";
+	position: absolute;
+	right: 50%;
+	bottom: 0;
+	top: 0;
+	height: 44px;
+	width: max(0%, min(50%, calc(50% - var(--value, 50%))));
+	background: #FFF;
+	z-index: 0;
+	pointer-events: none;
+}
+
+.pan-track input[type="range"]
+{
+	position: relative;
+	z-index: 1;
+	background: transparent;
 }
 
 #loader,
