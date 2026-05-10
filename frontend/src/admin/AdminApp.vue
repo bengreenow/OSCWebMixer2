@@ -10,13 +10,30 @@ import type {
 } from '@/admin/types'
 import AdminAuxEditorSection from '@/components/admin/AdminAuxEditorSection.vue'
 import AdminChannelsSection from '@/components/admin/AdminChannelsSection.vue'
-import AdminDonateBanner from '@/components/admin/AdminDonateBanner.vue'
 import AdminExternalDevicesSection from '@/components/admin/AdminExternalDevicesSection.vue'
 import AdminIconPickerDialog from '@/components/admin/AdminIconPickerDialog.vue'
-import AdminSiteNav from '@/components/admin/AdminSiteNav.vue'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { Info } from 'lucide-vue-next'
 import './entry.css'
 
-const WEBSOCKET_MS = 2000
+const TAB_VALUES = [
+  'osc-web-mixer',
+  'mixing-desk',
+  'aux',
+  'channels',
+  'additional-devices',
+] as const
+type TabValue = (typeof TAB_VALUES)[number]
 
 const SUGGESTED_GROUPS = [
   'Vocals',
@@ -87,10 +104,13 @@ type IconTarget =
   | { kind: 'channel'; row: ChannelRowData }
 
 const disconnected = ref(true)
-const navHash = ref('#osc-web-mixer')
+
+const tabValue = ref<TabValue>('osc-web-mixer')
 const iconPickerRef = ref<InstanceType<typeof AdminIconPickerDialog> | null>(
   null,
 )
+
+const WEBSOCKET_MS = 2000
 
 const form = reactive({
   ip_address: '',
@@ -127,9 +147,13 @@ function ipAddressCheck(ev: Event) {
   else t.setCustomValidity('Please enter a valid IP address')
 }
 
-function navigateTab(h: string, e?: Event) {
-  e?.preventDefault()
-  navHash.value = h
+function parseTabHash(): TabValue {
+  const h = location.hash.replace(/^#/, '') || 'osc-web-mixer'
+  return (TAB_VALUES as readonly string[]).includes(h) ? (h as TabValue) : 'osc-web-mixer'
+}
+
+function syncTabFromLocation() {
+  tabValue.value = parseTabHash()
 }
 
 function onSubmit(e: Event) {
@@ -370,7 +394,8 @@ function toggleAdminFieldset(fi: number) {
 }
 
 function onAdminFieldsetLegendClick(ev: MouseEvent, fi: number) {
-  if ((ev.target as HTMLElement).closest('button.channel-group-toggle')) return
+  if ((ev.target as HTMLElement).closest('button.channel-group-toggle'))
+    return
   toggleAdminFieldset(fi)
 }
 
@@ -475,148 +500,238 @@ function startWebsocket() {
   wsTimer = setTimeout(startWebsocket, WEBSOCKET_MS)
 }
 
-function sectionClass(id: string) {
-  const h = navHash.value.replace('#', '')
-  return h === id ? 'show' : ''
-}
+watch(disconnected, (d) => {
+  document.body.classList.toggle('disconnected', d)
+}, { immediate: true })
 
-watch(
-  disconnected,
-  (d) => {
-    document.body.classList.toggle('disconnected', d)
-  },
-  { immediate: true },
-)
+watch(tabValue, (v) => {
+  const desired = '#' + v
+  if (location.hash !== desired) {
+    history.replaceState(null, '', desired)
+  }
+})
 
 onMounted(() => {
-  if (location.hash) {
-    navHash.value = location.hash
-  }
+  syncTabFromLocation()
+  window.addEventListener('hashchange', syncTabFromLocation)
   startWebsocket()
 })
 
 onUnmounted(() => {
+  window.removeEventListener('hashchange', syncTabFromLocation)
   if (wsTimer) clearTimeout(wsTimer)
   if (ws) ws.close()
   document.body.classList.remove('disconnected')
 })
+
+function num(v: unknown) {
+  const n =
+    typeof v === 'number' ? v : v === '' || v === undefined ? NaN : Number(v)
+  return Number.isFinite(n) ? n : NaN
+}
 </script>
 
 <template>
-  <form
-    id="configForm"
-    ref="configFormRef"
-    method="post"
-    action="/admin"
-    @submit="onSubmit"
-  >
-    <AdminSiteNav :nav-hash="navHash" @navigate="navigateTab" />
-
-    <AdminDonateBanner />
-
-    <section id="osc-web-mixer-content" :class="sectionClass('osc-web-mixer')">
-      <label
-        >IP Address <input v-model="form.ip_address" disabled name="ip_address"
-      /></label>
-      <label
-        >Webserver Port<input
-          v-model.number="form.server_port"
-          type="number"
-          name="server_port"
-          required
-          min="0"
-          max="65353"
-      /></label>
-      <label
-        >OSC Receive Port<input
-          v-model.number="form.osc_port"
-          name="osc_port"
-          type="number"
-          min="0"
-          max="65353"
-      /></label>
-      <label
-        ><input
-          v-model="form.debug"
-          type="checkbox"
-          name="debug"
-          value="debug"
-        />Show Messages in Console</label
+  <TooltipProvider>
+    <div
+      class="text-foreground mx-auto flex min-h-svh max-w-3xl flex-col gap-6 px-4 pt-[calc(env(safe-area-inset-top,0px)+1.25rem)] pb-[calc(env(safe-area-inset-bottom,0px)+5rem)]"
+    >
+      <form
+        id="configForm"
+        ref="configFormRef"
+        class="flex min-h-0 flex-1 flex-col gap-6"
+        method="post"
+        action="/admin"
+        @submit="onSubmit"
       >
-    </section>
+        <Tabs v-model="tabValue" class="gap-4">
+          <TabsList
+            class="bg-muted text-muted-foreground w-full flex-wrap justify-start overflow-x-auto"
+          >
+            <TabsTrigger value="osc-web-mixer">OSC Web Mixer</TabsTrigger>
+            <TabsTrigger value="mixing-desk">
+              <span class="inline-flex items-center gap-2">
+                Mixing Desk
+                <span class="status" aria-hidden="true" />
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="aux" class="admin-tab-when-connected">
+              Auxiliaries
+            </TabsTrigger>
+            <TabsTrigger value="channels" class="admin-tab-when-connected">
+              Channels
+            </TabsTrigger>
+            <TabsTrigger
+              value="additional-devices"
+              class="admin-tab-when-connected"
+            >
+              Additional Devices
+            </TabsTrigger>
+          </TabsList>
 
-    <section id="mixing-desk-content" :class="sectionClass('mixing-desk')">
-      <div class="tips">
-        Goto <strong>Setup</strong> &gt; <strong>External Control</strong> and
-        add a device with the below settings. Make sure you select
-        <strong>DiGiCo iPad</strong> for the type of connection.
-      </div>
-      <label
-        >IP Address
-        <input
-          v-model="form.desk_ip"
-          type="text"
-          name="desk_ip"
-          required
-          @input="ipAddressCheck"
-      /></label>
-      <label
-        >Send Port<input
-          v-model.number="form.desk_send_port"
-          type="number"
-          name="desk_send_port"
-          disabled
-      /></label>
-      <label
-        >Receive Port<input
-          v-model.number="form.desk_port"
-          type="number"
-          name="desk_port"
-          required
-          min="0"
-          max="65353"
-      /></label>
-    </section>
+          <TabsContent value="osc-web-mixer" class="space-y-4">
+            <div class="space-y-2">
+              <Label for="ip_address">IP Address</Label>
+              <Input
+                id="ip_address"
+                v-model="form.ip_address"
+                disabled
+                name="ip_address"
+              />
+            </div>
+            <div class="space-y-2">
+              <Label for="server_port">Webserver Port</Label>
+              <Input
+                id="server_port"
+                :model-value="String(form.server_port)"
+                type="number"
+                name="server_port"
+                required
+                min="0"
+                max="65353"
+                @update:model-value="
+                  (v) => {
+                    const n = num(v)
+                    form.server_port = Number.isNaN(n) ? '' : n
+                  }
+                "
+              />
+            </div>
+            <div class="space-y-2">
+              <Label for="osc_port">OSC Receive Port</Label>
+              <Input
+                id="osc_port"
+                :model-value="String(form.osc_port)"
+                type="number"
+                name="osc_port"
+                min="0"
+                max="65353"
+                @update:model-value="
+                  (v) => {
+                    const n = num(v)
+                    form.osc_port = Number.isNaN(n) ? '' : n
+                  }
+                "
+              />
+            </div>
+            <div class="flex items-center gap-2">
+              <input
+                id="debug"
+                v-model="form.debug"
+                class="border-input size-4 shrink-0 rounded border"
+                type="checkbox"
+                name="debug"
+                value="debug"
+              />
+              <Label for="debug" class="cursor-pointer font-normal">
+                Show Messages in Console
+              </Label>
+            </div>
+          </TabsContent>
 
-    <AdminAuxEditorSection
-      :class="sectionClass('aux')"
-      :aux-rows="auxRows"
-      @open-icon="openAuxIcon"
-    />
+          <TabsContent value="mixing-desk" class="space-y-4">
+            <Alert
+              class="border-amber-400/60 bg-amber-100/80 text-amber-950 border"
+            >
+              <Info class="size-4" />
+              <AlertDescription>
+                Goto <strong>Setup</strong> &gt;
+                <strong>External Control</strong> and add a device with the below
+                settings. Make sure you select
+                <strong>DiGiCo iPad</strong> for the type of connection.
+              </AlertDescription>
+            </Alert>
+            <div class="space-y-2">
+              <Label for="desk_ip">IP Address</Label>
+              <Input
+                id="desk_ip"
+                v-model="form.desk_ip"
+                type="text"
+                name="desk_ip"
+                required
+                @input="ipAddressCheck"
+              />
+            </div>
+            <div class="space-y-2">
+              <Label for="desk_send_port">Send Port</Label>
+              <Input
+                id="desk_send_port"
+                :model-value="String(form.desk_send_port)"
+                type="number"
+                name="desk_send_port"
+                disabled
+              />
+            </div>
+            <div class="space-y-2">
+              <Label for="desk_port">Receive Port</Label>
+              <Input
+                id="desk_port"
+                :model-value="String(form.desk_port)"
+                type="number"
+                name="desk_port"
+                required
+                min="0"
+                max="65353"
+                @update:model-value="
+                  (v) => {
+                    const n = num(v)
+                    form.desk_port = Number.isNaN(n) ? '' : n
+                  }
+                "
+              />
+            </div>
+          </TabsContent>
 
-    <AdminChannelsSection
-      :class="sectionClass('channels')"
-      :channel-fieldsets="channelFieldsets"
-      :groups-array="groupsArray"
-      :collapsed-indices="collapsedFieldsetIndices"
-      @toggle-fieldset="toggleAdminFieldset"
-      @fieldset-legend-click="onAdminFieldsetLegendClick"
-      @drag-start="channelDragStart"
-      @drag-end="channelDragEnd"
-      @drop-on-group="applyDropToGroup"
-      @drop-ungroup="applyUngroup"
-      @remove-group="removeGroupIdx"
-      @add-group="addGroupRow"
-      @suggest-groups="suggestGroupsRun"
-      @move-up="moveUp"
-      @move-down="moveDown"
-      @open-channel-icon="openChannelIcon"
-    />
+          <TabsContent value="aux" class="mt-4">
+            <AdminAuxEditorSection :aux-rows="auxRows" @open-icon="openAuxIcon" />
+          </TabsContent>
 
-    <AdminExternalDevicesSection
-      :class="sectionClass('additional-devices')"
-      :externals="externals"
-      :server-ip="form.ip_address"
-      :osc-port="form.osc_port"
-      @ip-check="ipAddressCheck"
-      @remove="removeExternal"
-      @add="addExternal"
-    />
+          <TabsContent value="channels" class="mt-4">
+            <AdminChannelsSection
+              :channel-fieldsets="channelFieldsets"
+              :groups-array="groupsArray"
+              :collapsed-indices="collapsedFieldsetIndices"
+              @toggle-fieldset="toggleAdminFieldset"
+              @fieldset-legend-click="onAdminFieldsetLegendClick"
+              @drag-start="channelDragStart"
+              @drag-end="channelDragEnd"
+              @drop-on-group="applyDropToGroup"
+              @drop-ungroup="applyUngroup"
+              @remove-group="removeGroupIdx"
+              @add-group="addGroupRow"
+              @suggest-groups="suggestGroupsRun"
+              @move-up="moveUp"
+              @move-down="moveDown"
+              @open-channel-icon="openChannelIcon"
+            />
+          </TabsContent>
 
-    <div class="sticky">
-      <button type="submit">Save</button>
+          <TabsContent value="additional-devices" class="mt-4">
+            <AdminExternalDevicesSection
+              :externals="externals"
+              :server-ip="form.ip_address"
+              :osc-port="form.osc_port"
+              @ip-check="ipAddressCheck"
+              @remove="removeExternal"
+              @add="addExternal"
+            />
+          </TabsContent>
+        </Tabs>
+
+        <div
+          class="bg-background/80 supports-[backdrop-filter]:bg-background/60 sticky bottom-0 z-10 -mx-4 flex justify-end gap-2 border-t px-4 py-4 backdrop-blur-sm"
+          style="
+            padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
+          "
+        >
+          <Button type="submit" size="lg">Save</Button>
+        </div>
+      </form>
+
+      <AdminIconPickerDialog
+        ref="iconPickerRef"
+        @close="onIconDialogClose"
+      />
     </div>
-  </form>
-
-  <AdminIconPickerDialog ref="iconPickerRef" @close="onIconDialogClose" />
+  </TooltipProvider>
 </template>
