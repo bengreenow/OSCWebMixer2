@@ -11,9 +11,15 @@
     },
     "scripts": {
         "start": "node index.js",
-        "package": "npx pkg . --output \"dist/${npm_package_name}-${npm_package_version}\"",
+        "start:mock": "node index.js --mock",
+        "mock-desk": "node scripts/mock-desk.js",
+        "build:web": "npm run build -w frontend",
+        "package": "npm run build:web && npx pkg . --output \"dist/${npm_package_name}-${npm_package_version}\"",
         "package-plugins": "zip -r dist/${npm_package_name}-plugins-${npm_package_version}.zip plugins/"
     },
+    "workspaces": [
+        "frontend"
+    ],
     "license": "MIT",
     "keywords": [
         "Open Sound Control",

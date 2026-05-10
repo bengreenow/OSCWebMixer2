@@ -9,10 +9,33 @@ const fs = require('fs');
 const Logger = require('./lib/logger.js');
 const { getMainIPAddress, addToObject, generateColour } = require('./lib/utils.js');
 
+/** Defaults for `node index.js --mock` — keep in sync with `scripts/mock-desk.js` listen port */
+const MOCK_DESK_IP = '127.0.0.1';
+const MOCK_DESK_PORT = 9109;
+
+/**
+ * @param {*} cfg
+ */
+function applyMockDeskCli(cfg)
+{
+	if(!process.argv.includes('--mock'))
+	{
+		return false;
+	}
+	if(!cfg.desk)
+	{
+		cfg.desk = { ip: "", port: MOCK_DESK_PORT };
+	}
+	cfg.desk.ip = MOCK_DESK_IP;
+	cfg.desk.port = MOCK_DESK_PORT;
+	return true;
+}
+
 /**
  * Stores global configuration for webmixer
  */
 let config = loadConfig();
+const cliMockDesk = applyMockDeskCli(config);
 
 /**
  * the osc.js UDP Listening Port
@@ -53,6 +76,11 @@ let currentSnapshot = -1;
  * Logs messages to the console
  */
 const logger = new Logger(config.debug, false);
+
+if(cliMockDesk)
+{
+	logger.info(`Mock desk mode: OSC queries go to ${MOCK_DESK_IP}:${MOCK_DESK_PORT} — run "npm run mock-desk" with the same port (or send from any compatible mock).`);
+}
 
 /**
  * The main http server
